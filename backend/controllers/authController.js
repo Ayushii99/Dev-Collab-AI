@@ -1,3 +1,4 @@
+const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 
@@ -47,6 +48,49 @@ const registerUser = async (req, res) => {
   }
 };
 
+// @desc    Authenticate a user & get token
+// @route   POST /api/auth/login
+// @access  Public
+const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Check for user email
+    const user = await User.findOne({ email });
+
+    // Check password (using bcrypt model method or direct comparison)
+    if (user && (await bcrypt.compare(password, user.password))) {
+      res.json({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        token: generateToken(user._id),
+      });
+    } else {
+      res.status(401).json({ message: 'Invalid email or password' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: `Server Error: ${error.message}` });
+  }
+};
+
+// Helper function to generate JWT
+const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: '30d',
+  });
+};
+
+// @desc    Get current logged-in user data
+// @route   GET /api/auth/me
+// @access  Private
+const getMe = async (req, res) => {
+  res.status(200).json(req.user);
+};
+
 module.exports = {
   registerUser,
+  loginUser,
+  getMe,
 };
