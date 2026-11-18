@@ -9,7 +9,9 @@ import {
   Plus, 
   Sparkles, 
   Users, 
-  TrendingUp 
+  TrendingUp,
+  Trash2,
+  CheckCircle2
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -22,6 +24,7 @@ export default function Dashboard() {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [projects, setProjects] = useState([]);
+  const [tasks, setTasks] = useState([]);
 
   const handleLogout = () => {
     localStorage.removeItem('userInfo');
@@ -44,8 +47,25 @@ export default function Dashboard() {
     }
   };
 
+  const fetchTasks = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/tasks', {
+        headers: {
+          'Authorization': `Bearer ${userInfo.token}`
+        }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setTasks(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch tasks', err);
+    }
+  };
+
   useEffect(() => {
     fetchProjects();
+    fetchTasks();
   }, []);
 
   const handleCreateProject = async (e) => {
@@ -76,6 +96,28 @@ export default function Dashboard() {
       alert('Something went wrong!');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGenerateAI = async (projectId) => {
+    try {
+      const token = userInfo.token;
+      const response = await fetch(`http://localhost:5000/api/ai/generate-tasks/${projectId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert('✨ AI Tasks generated successfully!');
+        fetchTasks(); // Refresh tasks list
+      } else {
+        alert(data.message || 'Failed to generate AI tasks');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Something went wrong!');
     }
   };
 
@@ -133,8 +175,12 @@ export default function Dashboard() {
         {/* Top Navbar */}
         <header className="h-20 bg-slate-900/50 backdrop-blur-md border-b border-slate-800 px-8 flex justify-between items-center sticky top-0 z-10">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Welcome back, {userInfo.name || 'Developer'}! 👋</h1>
-            <p className="text-sm text-slate-400">Here's what's happening with your projects today.</p>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {activeTab === 'tasks' ? 'AI Generated Tasks' : `Welcome back, ${userInfo.name || 'Developer'}! 👋`}
+            </h1>
+            <p className="text-sm text-slate-400">
+              {activeTab === 'tasks' ? 'Manage and track your project execution roadmap.' : "Here's what's happening with your projects today."}
+            </p>
           </div>
           <div className="flex items-center space-x-4">
             <button 
@@ -152,82 +198,152 @@ export default function Dashboard() {
 
         {/* Dashboard Body */}
         <div className="p-8 space-y-8 max-w-7xl mx-auto w-full">
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl shadow-xl flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-400">Active Projects</p>
-                <h3 className="text-3xl font-bold mt-1 text-slate-100">{projects.length}</h3>
-                <span className="text-xs text-emerald-400 flex items-center mt-2 font-medium">
-                  <TrendingUp className="w-3.5 h-3.5 mr-1" /> +0% this month
-                </span>
-              </div>
-              <div className="bg-indigo-500/10 p-4 rounded-xl text-indigo-400 border border-indigo-500/20">
-                <FolderKanban className="w-7 h-7" />
-              </div>
-            </div>
-
-            <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl shadow-xl flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-400">AI Generated Tasks</p>
-                <h3 className="text-3xl font-bold mt-1 text-slate-100">0</h3>
-                <span className="text-xs text-indigo-400 flex items-center mt-2 font-medium">
-                  <Sparkles className="w-3.5 h-3.5 mr-1" /> Ready to automate
-                </span>
-              </div>
-              <div className="bg-cyan-500/10 p-4 rounded-xl text-cyan-400 border border-cyan-500/20">
-                <Bot className="w-7 h-7" />
-              </div>
-            </div>
-
-            <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl shadow-xl flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-400">Team Collaborators</p>
-                <h3 className="text-3xl font-bold mt-1 text-slate-100">1</h3>
-                <span className="text-xs text-slate-400 mt-2 block font-medium">Personal workspace</span>
-              </div>
-              <div className="bg-purple-500/10 p-4 rounded-xl text-purple-400 border border-purple-500/20">
-                <Users className="w-7 h-7" />
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Projects Section */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-bold">Your Projects</h2>
-              <span className="text-sm text-indigo-400 cursor-pointer hover:underline">View all</span>
-            </div>
-            
-            {projects.length === 0 ? (
-              <div className="border-2 border-dashed border-slate-800 rounded-xl p-12 text-center flex flex-col items-center justify-center">
-                <div className="bg-slate-800/60 p-4 rounded-full text-slate-400 mb-4">
-                  <FolderKanban className="w-8 h-8" />
-                </div>
-                <h3 className="text-slate-200 font-medium mb-1">No projects created yet</h3>
-                <p className="text-sm text-slate-400 max-w-sm mb-6">Get started by creating your first full-stack project workspace with AI task breakdown.</p>
+          {activeTab === 'tasks' ? (
+            /* AI Tasks View */
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold">All Generated Tasks ({tasks.length})</h2>
                 <button 
-                  onClick={() => setIsModalOpen(true)}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl font-medium transition shadow-lg shadow-indigo-600/20"
+                  onClick={fetchTasks}
+                  className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg transition font-medium"
                 >
-                  Create First Project
+                  Refresh Tasks
                 </button>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {projects.map((proj) => (
-                  <div key={proj._id} className="bg-slate-950 border border-slate-800 p-5 rounded-xl hover:border-indigo-500/50 transition">
-                    <h3 className="text-lg font-semibold text-slate-100 mb-1">{proj.title}</h3>
-                    <p className="text-sm text-slate-400 line-clamp-2">{proj.description}</p>
-                    <div className="mt-4 flex justify-between items-center text-xs text-slate-500">
-                      <span>Created recently</span>
-                      <span className="text-indigo-400 font-medium">Active Workspace</span>
-                    </div>
+
+              {tasks.length === 0 ? (
+                <div className="border-2 border-dashed border-slate-800 rounded-xl p-12 text-center flex flex-col items-center justify-center">
+                  <div className="bg-slate-800/60 p-4 rounded-full text-slate-400 mb-4">
+                    <Bot className="w-8 h-8" />
                   </div>
-                ))}
+                  <h3 className="text-slate-200 font-medium mb-1">No AI tasks generated yet</h3>
+                  <p className="text-sm text-slate-400 max-w-sm mb-6">Go to Overview or Projects tab and click "Generate AI Tasks" on any project workspace.</p>
+                  <button 
+                    onClick={() => setActiveTab('overview')}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl font-medium transition shadow-lg shadow-indigo-600/20 text-sm"
+                  >
+                    View Projects
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {tasks.map((task) => (
+                    <div key={task._id} className="bg-slate-950 border border-slate-800 p-4 rounded-xl flex items-center justify-between hover:border-indigo-500/40 transition">
+                      <div className="flex items-start space-x-3">
+                        <div className="mt-1 text-indigo-400">
+                          <CheckCircle2 className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-slate-200">{task.title}</h4>
+                          <p className="text-sm text-slate-400 mt-0.5">{task.description}</p>
+                          <div className="flex items-center space-x-2 mt-2">
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                              task.priority === 'High' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                              task.priority === 'Medium' ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' :
+                              'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            }`}>
+                              {task.priority || 'Medium'} Priority
+                            </span>
+                            <span className="text-[10px] bg-slate-900 text-slate-400 px-2 py-0.5 rounded-full border border-slate-800">
+                              Status: {task.status || 'Pending'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Overview View */
+            <>
+              {/* Stats Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl shadow-xl flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-400">Active Projects</p>
+                    <h3 className="text-3xl font-bold mt-1 text-slate-100">{projects.length}</h3>
+                    <span className="text-xs text-emerald-400 flex items-center mt-2 font-medium">
+                      <TrendingUp className="w-3.5 h-3.5 mr-1" /> +0% this month
+                    </span>
+                  </div>
+                  <div className="bg-indigo-500/10 p-4 rounded-xl text-indigo-400 border border-indigo-500/20">
+                    <FolderKanban className="w-7 h-7" />
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl shadow-xl flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-400">AI Generated Tasks</p>
+                    <h3 className="text-3xl font-bold mt-1 text-slate-100">{tasks.length}</h3>
+                    <span className="text-xs text-indigo-400 flex items-center mt-2 font-medium">
+                      <Sparkles className="w-3.5 h-3.5 mr-1" /> Ready to automate
+                    </span>
+                  </div>
+                  <div className="bg-cyan-500/10 p-4 rounded-xl text-cyan-400 border border-cyan-500/20">
+                    <Bot className="w-7 h-7" />
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl shadow-xl flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-400">Team Collaborators</p>
+                    <h3 className="text-3xl font-bold mt-1 text-slate-100">1</h3>
+                    <span className="text-xs text-slate-400 mt-2 block font-medium">Personal workspace</span>
+                  </div>
+                  <div className="bg-purple-500/10 p-4 rounded-xl text-purple-400 border border-purple-500/20">
+                    <Users className="w-7 h-7" />
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+
+              {/* Recent Projects Section */}
+              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-lg font-bold">Your Projects</h2>
+                  <span onClick={() => setActiveTab('projects')} className="text-sm text-indigo-400 cursor-pointer hover:underline">View all</span>
+                </div>
+                
+                {projects.length === 0 ? (
+                  <div className="border-2 border-dashed border-slate-800 rounded-xl p-12 text-center flex flex-col items-center justify-center">
+                    <div className="bg-slate-800/60 p-4 rounded-full text-slate-400 mb-4">
+                      <FolderKanban className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-slate-200 font-medium mb-1">No projects created yet</h3>
+                    <p className="text-sm text-slate-400 max-w-sm mb-6">Get started by creating your first full-stack project workspace with AI task breakdown.</p>
+                    <button 
+                      onClick={() => setIsModalOpen(true)}
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl font-medium transition shadow-lg shadow-indigo-600/20"
+                    >
+                      Create First Project
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {projects.map((proj) => (
+                      <div key={proj._id} className="bg-slate-950 border border-slate-800 p-5 rounded-xl hover:border-indigo-500/50 transition flex flex-col justify-between">
+                        <div>
+                          <h3 className="text-lg font-semibold text-slate-100 mb-1">{proj.title}</h3>
+                          <p className="text-sm text-slate-400 line-clamp-2 mb-4">{proj.description}</p>
+                        </div>
+                        <div className="flex justify-between items-center pt-3 border-t border-slate-900">
+                          <span className="text-xs text-slate-500 font-medium">Active Workspace</span>
+                          <button 
+                            onClick={() => handleGenerateAI(proj._id)}
+                            className="flex items-center space-x-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 px-3 py-1.5 rounded-lg text-xs font-medium transition"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>Generate AI Tasks</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </main>
 
@@ -259,7 +375,7 @@ export default function Dashboard() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 semibold mb-1">Description</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Description</label>
                   <textarea 
                     rows="3"
                     value={description}
