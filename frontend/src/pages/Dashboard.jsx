@@ -121,6 +121,32 @@ export default function Dashboard() {
     }
   };
 
+  const handleDeleteProject = async (projectId) => {
+    const confirmDelete = window.confirm('Are you sure you want to delete this project and its tasks?');
+    if (!confirmDelete) return;
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/projects/${projectId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${userInfo.token}`
+        }
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        setProjects((prev) => prev.filter((proj) => proj._id !== projectId));
+        fetchTasks();
+        alert('Project deleted successfully!');
+      } else {
+        alert(data.message || 'Failed to delete project');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Something went wrong while deleting project!');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex">
       {/* Sidebar */}
@@ -176,10 +202,18 @@ export default function Dashboard() {
         <header className="h-20 bg-slate-900/50 backdrop-blur-md border-b border-slate-800 px-8 flex justify-between items-center sticky top-0 z-10">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
-              {activeTab === 'tasks' ? 'AI Generated Tasks' : `Welcome back, ${userInfo.name || 'Developer'}! 👋`}
+              {activeTab === 'tasks' 
+                ? 'AI Generated Tasks' 
+                : activeTab === 'projects' 
+                ? 'All Projects' 
+                : `Welcome back, ${userInfo.name || 'Developer'}! 👋`}
             </h1>
             <p className="text-sm text-slate-400">
-              {activeTab === 'tasks' ? 'Manage and track your project execution roadmap.' : "Here's what's happening with your projects today."}
+              {activeTab === 'tasks' 
+                ? 'Manage and track your project execution roadmap.' 
+                : activeTab === 'projects'
+                ? 'Browse all your workspaces, generate AI tasks, or remove old projects.'
+                : "Here's what's happening with your projects today."}
             </p>
           </div>
           <div className="flex items-center space-x-4">
@@ -198,7 +232,67 @@ export default function Dashboard() {
 
         {/* Dashboard Body */}
         <div className="p-8 space-y-8 max-w-7xl mx-auto w-full">
-          {activeTab === 'tasks' ? (
+          {activeTab === 'projects' ? (
+            /* Projects Grid View */
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-lg font-bold">All Projects ({projects.length})</h2>
+                <button 
+                  onClick={() => setIsModalOpen(true)}
+                  className="flex items-center space-x-1.5 bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 rounded-xl text-xs font-medium transition shadow-lg shadow-indigo-600/20"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Project</span>
+                </button>
+              </div>
+
+              {projects.length === 0 ? (
+                <div className="border-2 border-dashed border-slate-800 rounded-xl p-12 text-center flex flex-col items-center justify-center">
+                  <div className="bg-slate-800/60 p-4 rounded-full text-slate-400 mb-4">
+                    <FolderKanban className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-slate-200 font-medium mb-1">No projects available</h3>
+                  <p className="text-sm text-slate-400 max-w-sm mb-6">Create a new project workspace to start generating AI tasks.</p>
+                  <button 
+                    onClick={() => setIsModalOpen(true)}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl font-medium transition shadow-lg shadow-indigo-600/20"
+                  >
+                    Create First Project
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {projects.map((proj) => (
+                    <div key={proj._id} className="bg-slate-950 border border-slate-800 p-5 rounded-xl hover:border-indigo-500/50 transition flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h3 className="text-lg font-semibold text-slate-100 line-clamp-1">{proj.title}</h3>
+                          <button 
+                            onClick={() => handleDeleteProject(proj._id)}
+                            title="Delete Project"
+                            className="text-slate-400 hover:text-red-400 hover:bg-red-500/10 p-1.5 rounded-lg transition"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <p className="text-sm text-slate-400 line-clamp-3 mb-5">{proj.description || 'No description provided.'}</p>
+                      </div>
+                      <div className="flex justify-between items-center pt-3 border-t border-slate-900 gap-2">
+                        <span className="text-xs text-slate-500 font-medium">Active Workspace</span>
+                        <button 
+                          onClick={() => handleGenerateAI(proj._id)}
+                          className="flex items-center space-x-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 px-3 py-1.5 rounded-lg text-xs font-medium transition"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Generate AI Tasks</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : activeTab === 'tasks' ? (
             /* AI Tasks View */
             <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
               <div className="flex justify-between items-center mb-4">
